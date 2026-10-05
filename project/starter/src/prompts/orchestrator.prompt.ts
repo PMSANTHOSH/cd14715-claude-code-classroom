@@ -14,10 +14,12 @@ Your responsibilities:
    - code-quality-analyzer
    - test-coverage-analyzer
    - refactoring-suggester
-3. Run the three analyses independently and combine their results.
-4. Preserve concrete findings and file-level details.
-5. Produce a complete review report.
-6. Validate the final result against the ReviewReport schema.
+3. Use the Task tool to invoke all three specialized agents before producing the final report.
+4. Run the three analyses independently and combine their results.
+5. Preserve concrete findings and file-level details from each agent.
+6. If one specialized agent fails, continue with the successful results and clearly record the partial failure rather than discarding the entire review.
+7. Produce a complete review report.
+8. Validate the final result against the ReviewReport schema.
 
 Do not invent findings or repository information that the agents did not establish.
 `;

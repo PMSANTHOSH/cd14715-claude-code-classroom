@@ -13,6 +13,12 @@ import {
   ReviewReportJSONSchema,
   type ReviewReport
 } from './types/report-types.js';
+import {
+  withRetry,
+  withTimeout,
+  withRateLimit,
+  globalRateLimiter
+} from './utils/index.js';
 
 /**
  * Orchestrator configuration options
@@ -79,35 +85,53 @@ export class CodeReviewOrchestrator {
 
     const prompt = buildOrchestratorPrompt(owner, repo, prNumber);
 
-    const resultQuery = query({
-      prompt,
-      options: {
-        model: this.model,
-        cwd: this.cwd,
-        maxTurns: this.maxTurns,
-        ...(this.maxBudgetUsd !== undefined
-          ? { maxBudgetUsd: this.maxBudgetUsd }
-          : {}),
-        agents,
-        mcpServers: mcpServersConfig,
-        allowedTools: [
-          'Read',
-          'Grep',
-          'Glob',
-          'Bash',
-          'Task'
-        ],
-        settingSources: ['project'],
-        outputFormat: {
-          type: 'json_schema',
-          schema: ReviewReportJSONSchema
-        }
-      }
-    });
+    const resultMessages = await withRateLimit(
+      globalRateLimiter,
+      async () =>
+        withRetry(
+          async () =>
+            withTimeout(
+              (async () => {
+                const messages = [];
+
+                for await (const message of query({
+                  prompt,
+                  options: {
+                    model: this.model,
+                    cwd: this.cwd,
+                    maxTurns: this.maxTurns,
+                    ...(this.maxBudgetUsd !== undefined
+                      ? { maxBudgetUsd: this.maxBudgetUsd }
+                      : {}),
+                    agents,
+                    mcpServers: mcpServersConfig,
+                    allowedTools: [
+                      'Read',
+                      'Grep',
+                      'Glob',
+                      'Bash',
+                      'Task'
+                    ],
+                    settingSources: ['project'],
+                    outputFormat: {
+                      type: 'json_schema',
+                      schema: ReviewReportJSONSchema
+                    }
+                  }
+                })) {
+                  messages.push(message);
+                }
+
+                return messages;
+              })(),
+              60000
+            )
+        )
+    );
 
     let structuredOutput: unknown;
 
-    for await (const message of resultQuery) {
+    for (const message of resultMessages) {
       if (
         message.type === 'result' &&
         message.subtype === 'success'

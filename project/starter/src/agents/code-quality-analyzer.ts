@@ -5,6 +5,7 @@ export const codeQualityAnalyzer: AgentDefinition = {
   description:
     'Analyzes pull request code for bugs, security issues, performance problems, maintainability issues, style violations, and best-practice violations.',
   prompt: CODE_QUALITY_ANALYZER_PROMPT,
-  model: 'sonnet',
+  model: 'inherit',
+  tools: ['Read', 'Grep', 'Glob', 'Skill'],
   mcpServers: ['github', 'eslint']
 };
